@@ -1,7 +1,7 @@
 import pvporcupine, sounddevice as sd, soundfile as sf, numpy as np, time
 
 # Load chime into a NumPy array
-chime, fs_chime = sf.read("sound.wav", dtype="int16")
+chime, fs_chime = sf.read("success.wav", dtype="int16")
 chime = chime.reshape(-1)  # flatten in case it's (N,1)
 
 # State machine

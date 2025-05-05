@@ -35,6 +35,8 @@ print(f"Chime loaded: {len(chime)} frames at {SAMPLE_RATE} Hz")
 model_path = get_model_path()
 # 1) Start from a blank config (no LM/dict)
 config = Config()
+# Disable the default language model
+config.set_string("-lm", None)
 # 2) Point to the acoustic model
 config.set_string("-hmm", os.path.join(model_path, "en-us"))
 # 3) Point to the pronunciation dictionary

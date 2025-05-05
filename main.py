@@ -4,7 +4,7 @@ import numpy as np
 import sounddevice as sd
 import soundfile as sf
 
-from pocketsphinx.pocketsphinx import Decoder
+from pocketsphinx import Decoder
 from pocketsphinx import get_model_path
 import librosa   # <-- new dependency
 

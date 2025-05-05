@@ -4,7 +4,7 @@ import soundfile as sf
 import numpy as np
 
 # 1) Load your chime once
-chime, fs_chime = sf.read("sound.wav", dtype="int16")
+chime, fs_chime = sf.read("success.wav", dtype="int16")
 
 # 2) Configure Porcupine
 porcupine = pvporcupine.create(keywords=["picovoice"])

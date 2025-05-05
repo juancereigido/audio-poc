@@ -1,86 +1,99 @@
-import pvporcupine, sounddevice as sd, soundfile as sf, numpy as np, time
+import os, time, numpy as np
+import sounddevice as sd
+import soundfile   as sf
+from pocketsphinx.pocketsphinx import Decoder
+from pocketsphinx import get_model_path
 
-# Load chime into a NumPy array
+# ––––– Load chime –––––
 chime, fs_chime = sf.read("success.wav", dtype="int16")
-chime = chime.reshape(-1)  # flatten in case it's (N,1)
+chime = chime.reshape(-1)
 
-# State machine
-state = "sleep"
-start_time = None
-record_buf = []
-chime_pos = 0
+# ––––– PocketSphinx keyword config –––––
+model_path = get_model_path()
+config = Decoder.default_config()
+config.set_string('-hmm', os.path.join(model_path, 'en-us'))       # acoustic model
+config.set_string('-keyphrase', 'porcupine')                        # your wake word
+config.set_float ('-kws_threshold', 1e-20)                          # tweak sensitivity
+decoder = Decoder(config)
+decoder.start_utt()
 
-# Porcupine setup
-access_key = "VG6zeSj7tpjIHVzyeWB7IfDqd9Qxfv5YXXIrlqnmp8rX5LVBbEBoxA=="  # Replace with your Picovoice access key
-porcupine = pvporcupine.create(access_key=access_key, keywords=["picovoice"])
-FRAME_LEN = porcupine.frame_length
-SAMPLE_RATE = porcupine.sample_rate  # 16000
+# ––––– Stream state –––––
+state        = "sleep"
+chime_pos    = 0
+start_time   = None
+record_buf   = []
+
+# ––––– Sample settings –––––
+SAMPLE_RATE  = 16000
+FRAME_LEN    = 512   # power-of-two, small enough for low latency
 
 def callback(indata, outdata, frames, time_info, status):
-    global state, start_time, record_buf, chime_pos
+    global state, chime_pos, start_time, record_buf
 
-    pcm = indata[:,0].copy()
-    out = np.zeros(frames, dtype='int16')
+    pcm = indata[:,0].tobytes()
+    mic  = indata[:,0].copy()
+    out  = np.zeros(frames, dtype='int16')
 
     if state == "sleep":
-        # 1) Wake-word detection
-        if porcupine.process(pcm.tobytes()) >= 0:
-            state = "chime"
+        # feed chunks into Pocketsphinx
+        decoder.process_raw(pcm, False, False)
+        hyp = decoder.hyp()
+        if hyp is not None:
+            print("🔊 Wake word!")
+            state     = "chime"
             chime_pos = 0
+            decoder.end_utt()
     elif state == "chime":
-        # 2) Play chime
-        end = chime_pos + frames
+        # play your sound.wav
+        end   = chime_pos + frames
         chunk = chime[chime_pos:end]
         out[:len(chunk)] = chunk
         chime_pos += frames
         if chime_pos >= len(chime):
-            # move to record phase
-            state = "record"
+            state      = "record"
             start_time = time.time()
             record_buf = []
     elif state == "record":
-        # 3) Accumulate 3 seconds of mic audio
-        record_buf.append(pcm)
+        # capture 3 seconds
+        record_buf.append(mic)
         if time.time() - start_time >= 3.0:
-            # switch to playback
-            state = "playback"
-            play_buf = np.concatenate(record_buf)
-            record_buf = []  # free memory
-            # store playback buffer and pos
-            callback.playback_buf = play_buf
+            # queue for playback
+            callback.playback_buf = np.concatenate(record_buf)
             callback.playback_pos = 0
+            state = "playback"
     elif state == "playback":
-        # 4) Output the just-recorded audio
+        # play back what you just recorded
         buf = callback.playback_buf
         pos = callback.playback_pos
         chunk = buf[pos:pos+frames]
         out[:len(chunk)] = chunk
         callback.playback_pos += frames
         if callback.playback_pos >= len(buf):
-            # done, back to sleep
+            # reset
             state = "sleep"
+            decoder.start_utt()
 
     outdata[:] = out.reshape(-1,1)
 
-# Open a single full-duplex stream
+# ––––– Open full-duplex stream ONCE –––––
 stream = sd.Stream(
     samplerate=SAMPLE_RATE,
     blocksize=FRAME_LEN,
     dtype='int16',
     channels=1,
-    device=("hw:1,0", "hw:1,0"),  # replace with your (card,device) tuple
+    device=("hw:1,0","hw:1,0"),  # or your (in_dev, out_dev)
     callback=callback
 )
 
 try:
     stream.start()
-    print("Running! Say your wake word...")
+    print("Say your wake word (‘porcupine’)…")
     while True:
-        time.sleep(1)
+        time.sleep(0.5)
 except KeyboardInterrupt:
     pass
 finally:
     stream.stop()
     stream.close()
-    porcupine.delete()
-    print("Clean exit.")
+    decoder.end_utt()
+    print("Goodbye.")

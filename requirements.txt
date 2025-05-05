@@ -1,4 +1,4 @@
 sounddevice
-pvporcupine
-numpy
-soundfile
+pocketsphinx
+ numpy
+ soundfile

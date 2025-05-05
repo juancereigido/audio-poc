@@ -5,7 +5,7 @@ import sounddevice as sd
 import soundfile as sf
 from scipy.signal import resample_poly        # <-- faster, no lazy loading
 
-from pocketsphinx.pocketsphinx import Decoder, Config
+from pocketsphinx import Decoder, Config
 from pocketsphinx import get_model_path
 
 # ─────── Configuration ───────
@@ -33,6 +33,7 @@ print(f"Chime loaded: {len(chime)} frames at {SAMPLE_RATE} Hz")
 
 # ─────── PocketSphinx Setup ───────
 model_path = get_model_path()
+print(f"Model path from get_model_path(): {model_path}")
 # 1) Start from a blank config (no LM/dict)
 config = Config()
 # Disable the default language model

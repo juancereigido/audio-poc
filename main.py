@@ -38,7 +38,7 @@ config = Config()
 # Disable the default language model
 config.set_string("-lm", None)
 # 2) Point to the acoustic model
-config.set_string("-hmm", os.path.join(model_path, "en-us"))
+config.set_string("-hmm", model_path)
 # 3) Point to the pronunciation dictionary
 #    (needed even in keyphrase mode)
 config.set_string("-dict", os.path.join(model_path, "cmudict-en-us.dict"))

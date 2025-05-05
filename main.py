@@ -25,6 +25,7 @@ chime = np.clip(y * 32767, -32768, 32767).astype("int16")
 # ─────── PocketSphinx Setup ───────
 model_path = get_model_path()
 config     = Config()
+config.set_string("-lm", None)
 config.set_string("-hmm", os.path.join(model_path, "en-us", "en-us"))
 config.set_string("-dict", os.path.join(model_path, "en-us", "cmudict-en-us.dict"))
 config.set_string("-keyphrase", WAKE_WORD)

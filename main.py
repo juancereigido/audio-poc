@@ -5,7 +5,7 @@ import sounddevice as sd
 import soundfile as sf
 from scipy.signal import resample_poly        # <-- faster, no lazy loading
 
-from pocketsphinx import Decoder
+from pocketsphinx import Decoder, Config
 from pocketsphinx import get_model_path
 
 # ─────── Configuration ───────
@@ -33,8 +33,14 @@ print(f"Chime loaded: {len(chime)} frames at {SAMPLE_RATE} Hz")
 
 # ─────── PocketSphinx Setup ───────
 model_path = get_model_path()
-config     = Decoder.default_config()
+# 1) Start from a blank config (no LM/dict)
+config = Config()
+# 2) Point to the acoustic model
 config.set_string("-hmm", os.path.join(model_path, "en-us"))
+# 3) Point to the pronunciation dictionary
+#    (needed even in keyphrase mode)
+config.set_string("-dict", os.path.join(model_path, "cmudict-en-us.dict"))
+# 4) Turn on only the keyphrase spotter
 config.set_string("-keyphrase", WAKE_WORD)
 config.set_float ("-kws_threshold", 1e-20)
 decoder = Decoder(config)

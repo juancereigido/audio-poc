@@ -15,7 +15,7 @@ WAKE_WORD   = "porcupine"
 
 # ─────── Load & Resample Chime ───────
 # 1) Read original file and its samplerate
-y, sr_orig = sf.read("sound.wav", always_2d=False)
+y, sr_orig = sf.read("success.wav", always_2d=False)
 
 # 2) If needed, resample to SAMPLE_RATE
 if sr_orig != SAMPLE_RATE:

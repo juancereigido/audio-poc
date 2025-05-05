@@ -1,53 +1,85 @@
-import pvporcupine
-import sounddevice as sd
-import soundfile as sf
-import numpy as np
+import pvporcupine, sounddevice as sd, soundfile as sf, numpy as np, time
 
-# 1) Load your chime once
-chime, fs_chime = sf.read("success.wav", dtype="int16")
+# Load chime into a NumPy array
+chime, fs_chime = sf.read("sound.wav", dtype="int16")
+chime = chime.reshape(-1)  # flatten in case it's (N,1)
 
-# 2) Configure Porcupine
+# State machine
+state = "sleep"
+start_time = None
+record_buf = []
+chime_pos = 0
+
+# Porcupine setup
 porcupine = pvporcupine.create(keywords=["picovoice"])
+FRAME_LEN = porcupine.frame_length
+SAMPLE_RATE = porcupine.sample_rate  # 16000
 
-def listen_for_wake():
-    """Block until wake-word is heard."""
-    buf_q = []
-    with sd.InputStream(samplerate=porcupine.sample_rate,
-                        blocksize=porcupine.frame_length,
-                        channels=1, dtype="int16") as stream:
-        print("→ Listening for wake word…")
-        while True:
-            data, _ = stream.read(porcupine.frame_length)
-            if porcupine.process(data.tobytes()) >= 0:
-                print("🔥 Wake word detected!")
-                return
+def callback(indata, outdata, frames, time_info, status):
+    global state, start_time, record_buf, chime_pos
 
-def play_chime():
-    """Play the chime and block until done."""
-    print("→ Playing chime…")
-    sd.play(chime, fs_chime)
-    sd.wait()
+    pcm = indata[:,0].copy()
+    out = np.zeros(frames, dtype='int16')
 
-def record_and_playback(duration=3, fs=16000):
-    """Record `duration` seconds, then play it back."""
-    print(f"→ Recording for {duration} seconds…")
-    recording = sd.rec(int(duration * fs), samplerate=fs,
-                       channels=1, dtype="int16")
-    sd.wait()
-    print("→ Playing back your recording…")
-    sd.play(recording, fs)
-    sd.wait()
+    if state == "sleep":
+        # 1) Wake-word detection
+        if porcupine.process(pcm.tobytes()) >= 0:
+            state = "chime"
+            chime_pos = 0
+    elif state == "chime":
+        # 2) Play chime
+        end = chime_pos + frames
+        chunk = chime[chime_pos:end]
+        out[:len(chunk)] = chunk
+        chime_pos += frames
+        if chime_pos >= len(chime):
+            # move to record phase
+            state = "record"
+            start_time = time.time()
+            record_buf = []
+    elif state == "record":
+        # 3) Accumulate 3 seconds of mic audio
+        record_buf.append(pcm)
+        if time.time() - start_time >= 3.0:
+            # switch to playback
+            state = "playback"
+            play_buf = np.concatenate(record_buf)
+            record_buf = []  # free memory
+            # store playback buffer and pos
+            callback.playback_buf = play_buf
+            callback.playback_pos = 0
+    elif state == "playback":
+        # 4) Output the just-recorded audio
+        buf = callback.playback_buf
+        pos = callback.playback_pos
+        chunk = buf[pos:pos+frames]
+        out[:len(chunk)] = chunk
+        callback.playback_pos += frames
+        if callback.playback_pos >= len(buf):
+            # done, back to sleep
+            state = "sleep"
 
-def main():
-    try:
-        while True:
-            listen_for_wake()
-            play_chime()
-            record_and_playback()
-    except KeyboardInterrupt:
-        print("\nExiting…")
-    finally:
-        porcupine.delete()
+    outdata[:] = out.reshape(-1,1)
 
-if __name__ == "__main__":
-    main()
+# Open a single full-duplex stream
+stream = sd.Stream(
+    samplerate=SAMPLE_RATE,
+    blocksize=FRAME_LEN,
+    dtype='int16',
+    channels=1,
+    device=("hw:1,0", "hw:1,0"),  # replace with your (card,device) tuple
+    callback=callback
+)
+
+try:
+    stream.start()
+    print("Running! Say your wake word...")
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    pass
+finally:
+    stream.stop()
+    stream.close()
+    porcupine.delete()
+    print("Clean exit.")

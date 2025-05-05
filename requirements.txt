@@ -3,3 +3,4 @@ pocketsphinx
 numpy
 soundfile
 librosa
+scipy

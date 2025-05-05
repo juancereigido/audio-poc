@@ -11,7 +11,8 @@ record_buf = []
 chime_pos = 0
 
 # Porcupine setup
-porcupine = pvporcupine.create(keywords=["picovoice"])
+access_key = "VG6zeSj7tpjIHVzyeWB7IfDqd9Qxfv5YXXIrlqnmp8rX5LVBbEBoxA=="  # Replace with your Picovoice access key
+porcupine = pvporcupine.create(access_key=access_key, keywords=["picovoice"])
 FRAME_LEN = porcupine.frame_length
 SAMPLE_RATE = porcupine.sample_rate  # 16000
 

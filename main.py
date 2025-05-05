@@ -5,7 +5,7 @@ import sounddevice as sd
 import soundfile as sf
 from scipy.signal import resample_poly
 
-from pocketsphinx.pocketsphinx import Decoder, Config
+from pocketsphinx import Decoder, Config
 from pocketsphinx import get_model_path
 
 # ─────── Configuration ───────

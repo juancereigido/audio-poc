@@ -1,0 +1,4 @@
+sounddevice
+pvporcupine
+numpy
+soundfile

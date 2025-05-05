@@ -11,7 +11,7 @@ import librosa   # <-- new dependency
 # ─────── Configuration ───────
 SAMPLE_RATE = 16000
 FRAME_LEN   = 512       # small power-of-two for low latency
-WAKE_WORD   = "porcupine"
+WAKE_WORD   = "success"
 
 # ─────── Load & Resample Chime ───────
 # 1) Read original file and its samplerate
